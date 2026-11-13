@@ -58,10 +58,25 @@ build_tree xneur --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
 	--with-sound=no --without-xosd --without-keylogger
 
 say "building gxneur"
-build_tree gxneur --prefix=/usr --sysconfdir=/etc
+# gxneur's configure needs the xnconfig/xneur pkg-config files that the xneur
+# build just produced; point it at the staging tree instead of /usr.
+export PKG_CONFIG_PATH="$ROOT/usr/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+export CPPFLAGS="-I$ROOT/usr/include $CPPFLAGS"
+export LDFLAGS="-L$ROOT/usr/lib"
+build_tree gxneur --prefix=/usr --sysconfdir=/etc --disable-rpath
 
 say "cleaning staged tree"
 rm -rf "$ROOT/usr/include" "$ROOT/usr/lib/pkgconfig"
+# gxneur is linked against the staging tree, so libtool bakes its path in as
+# RUNPATH; the installed package resolves the libraries through /usr/lib.
+command -v patchelf >/dev/null || {
+	echo "patchelf is required (apt install patchelf)" >&2
+	exit 1
+}
+for f in "$ROOT/usr/bin/xneur" "$ROOT/usr/bin/gxneur" "$ROOT"/usr/lib/*.so.* \
+	"$ROOT"/usr/lib/xneur/*.so.*; do
+	[ -f "$f" ] && patchelf --remove-rpath "$f"
+done
 # development symlinks: runtime resolves the versioned SONAMEs
 rm -f "$ROOT/usr/lib/libxneur.so" "$ROOT/usr/lib/libxnconfig.so"
 find "$ROOT" -type f \( -name '*.la' -o -name '*.a' \) -delete

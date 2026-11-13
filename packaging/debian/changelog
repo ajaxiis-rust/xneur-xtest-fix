@@ -6,7 +6,7 @@ xneur-xtest (0.21.0-xtest2) jammy; urgency=medium
     scan of the .deb, CodeQL for C, OpenSSF Scorecard, Dependabot.
   * Release artifacts carry SHA256SUMS and build provenance.
 
- -- ajaxiis-rust <ajaxiis-rust@users.noreply.github.com>  Fri, 13 Nov 2026 23:30:00 +0300
+ -- ajaxiis-rust <ajaxiis-rust@users.noreply.github.com>  Fri, 13 Nov 2026 23:55:00 +0300
 
 xneur-xtest (0.21.0-xtest1) jammy; urgency=medium
 
