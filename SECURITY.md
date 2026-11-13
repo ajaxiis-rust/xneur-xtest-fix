@@ -21,6 +21,21 @@ gh attestation verify xneur-xtest_0.21.0-xtest2_amd64.deb \
   --repo ajaxiis-rust/xneur-xtest-fix
 ```
 
+## Что показывает CodeQL
+
+Анализируются только файлы демона (`src/xneur/lib`, `src/xneur/src`,
+`src/xneur/plugins`) после наложения патча. Первый прогон находит 22
+предупреждения, все — в неизменённом коде upstream:
+
+- `cpp/path-injection` и `cpp/world-writable-file-creation` — работа с путями
+  из `$HOME` и правами на файлы конфигурации;
+- `cpp/potentially-dangerous-function` — `strcpy`/`system` в разборе ввода;
+- `cpp/incorrectly-checked-scanf`, `cpp/integer-multiplication-cast-to-long`.
+
+Наш патч (`event.c`, `program.c`) новых предупреждений не добавляет. Список
+открыт целиком в Security → Code scanning, чтобы его можно было проверить
+самостоятельно.
+
 ## Сообщить о проблеме
 
 Откройте приватный отчёт: вкладка **Security** → **Report a vulnerability**.
