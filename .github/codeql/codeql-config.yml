@@ -1,0 +1,10 @@
+# The repository stores a patch, so the analysed C sources are fetched from
+# upstream at the pinned commit and patched in the workflow. Only the daemon
+# is analysed: gxneur is an unchanged GTK2 frontend.
+name: "xneur-xtest daemon"
+paths:
+  - src/xneur/lib
+  - src/xneur/src
+  - src/xneur/plugins
+queries:
+  - uses: security-extended

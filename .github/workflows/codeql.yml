@@ -23,11 +23,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Fetch upstream and apply the patch
+        run: |
+          mkdir -p src
+          git -C src init -q
+          git -C src remote add origin https://github.com/AndrewCrewKuznetsov/xneur-devel.git
+          git -C src fetch -q --depth 1 origin 5a964810103cf73783f8f8ebb2998be8a5b91eda
+          git -C src checkout -q FETCH_HEAD
+          git -C src apply "$PWD/xneur-0.21.0-xtest.patch"
+
       - uses: github/codeql-action/init@v4
         with:
           languages: c-cpp
           build-mode: none
-          queries: security-extended
+          config-file: .github/codeql/codeql-config.yml
 
       - uses: github/codeql-action/analyze@v4
         with:
