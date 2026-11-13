@@ -1,5 +1,10 @@
 # xneur / gxneur 0.21.0 — патчи и готовая сборка для современных X11-систем
 
+[![build-and-scan](https://github.com/ajaxiis-rust/xneur-xtest-fix/actions/workflows/ci.yml/badge.svg)](https://github.com/ajaxiis-rust/xneur-xtest-fix/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ajaxiis-rust/xneur-xtest-fix/actions/workflows/codeql.yml/badge.svg)](https://github.com/ajaxiis-rust/xneur-xtest-fix/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/ajaxiis-rust/xneur-xtest-fix/badge)](https://securityscorecards.dev/viewer/?uri=github.com/ajaxiis-rust/xneur-xtest-fix)
+[![ClamAV](https://img.shields.io/badge/ClamAV-проверено-1f9e3d)](https://github.com/ajaxiis-rust/xneur-xtest-fix/actions/workflows/ci.yml)
+
 Патчи к форку [xneur-devel](https://github.com/AndrewCrewKuznetsov/xneur-devel) 0.21.0
 (база: коммит `5a964810103cf73783f8f8ebb2998be8a5b91eda`, 18.10.2024),
 которые возвращают автоматическую смену раскладки EN ⇄ RU на актуальных
@@ -10,12 +15,13 @@
 
 ## Быстрая установка (один файл)
 
-Версия пакета: **0.21.0-xtest1**, архитектура **amd64**, собрано и проверено
-на Ubuntu 22.04 (jammy).
+Версия пакета: **0.21.0-xtest2**, архитектура **amd64**, собрано и проверено
+на Ubuntu 22.04 (jammy). Пакет собирается автоматически в GitHub Actions из
+этого репозитория: сборка, `lintian`, ClamAV и provenance на каждый тег.
 
 ```bash
-wget https://github.com/ajaxiis-rust/xneur-xtest-fix/releases/latest/download/xneur-xtest_0.21.0-xtest1_amd64.deb
-sudo apt install ./xneur-xtest_0.21.0-xtest1_amd64.deb
+wget https://github.com/ajaxiis-rust/xneur-xtest-fix/releases/latest/download/xneur-xtest_0.21.0-xtest2_amd64.deb
+sudo apt install ./xneur-xtest_0.21.0-xtest2_amd64.deb
 ```
 
 `apt install ./файл.deb` сам подтянет зависимости. После установки:
@@ -30,6 +36,33 @@ sudo apt install ./xneur-xtest_0.21.0-xtest1_amd64.deb
 
 Что внутри пакета: `xneur`, `gxneur`, `libxneur`/`libxnconfig`, плагины,
 словари и звуки, man-страницы, `.desktop`-файлы, автозапуск.
+
+## Проверки перед скачиванием
+
+Результаты лежат на вкладке [Actions](https://github.com/ajaxiis-rust/xneur-xtest-fix/actions)
+и в Security, до установки пакета.
+
+| Проверка | Где | Что подтверждает |
+|---|---|---|
+| сборка из тега | `build-and-scan` | `.deb` собирается из этого коммита на чистом ubuntu-22.04 |
+| lintian | `build-and-scan` | ошибок в метаданных пакета нет |
+| вирусы | `build-and-scan` | ClamAV проверил `.deb` и его распакованное содержимое, заражённых файлов нет |
+| уязвимости в коде | `codeql` | статический анализ C: переполнения, разыменования, утечки — в Security → Code scanning |
+| гигиена репозитория | `scorecard` | методика OpenSSF, балл виден в бейдже |
+| версии Actions | Dependabot | обновления приходят отдельными PR |
+| подлинность артефакта | provenance | `gh attestation verify` сверяет файл со сборкой в этом репозитории |
+
+Проверить скачанное самому:
+
+```bash
+sha256sum xneur-xtest_0.21.0-xtest2_amd64.deb      # сверьте с SHA256SUMS из релиза
+gh attestation verify xneur-xtest_0.21.0-xtest2_amd64.deb \
+  --repo ajaxiis-rust/xneur-xtest-fix
+```
+
+Чего эти проверки не делают: GitHub не сканирует deb-архивы сам — вирусы ищет
+workflow через ClamAV, а он знает только известные сигнатуры. Аудит кода
+покрывает наш C-код, а не библиотеки из дистрибутива (их патчит Ubuntu).
 
 ## Почему без патча не работает
 
@@ -119,7 +152,7 @@ sudo apt install build-essential autoconf automake libtool pkg-config \
 
 git clone https://github.com/ajaxiis-rust/xneur-xtest-fix.git
 cd xneur-xtest-fix
-./packaging/build-deb.sh       # -> dist/xneur-xtest_0.21.0-xtest1_amd64.deb
+./packaging/build-deb.sh       # -> dist/xneur-xtest_0.21.0-xtest2_amd64.deb
 ```
 
 Скрипт клонирует upstream на зафиксированный коммит, накладывает патч, собирает
@@ -195,8 +228,8 @@ automatic EN ⇄ RU keyboard layout correction on modern X11 desktops, plus a
 script that produces a single installable `.deb`.
 
 Install: download
-`xneur-xtest_0.21.0-xtest1_amd64.deb` from the latest release and run
-`sudo apt install ./xneur-xtest_0.21.0-xtest1_amd64.deb`.
+`xneur-xtest_0.21.0-xtest2_amd64.deb` from the latest release and run
+`sudo apt install ./xneur-xtest_0.21.0-xtest2_amd64.deb`.
 
 Three fixes:
 1. Text is injected with `XTestFakeKeyEvent` instead of `XSendEvent`

@@ -1,0 +1,86 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install build and scan tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool pkg-config intltool gettext \
+            libx11-dev libxi-dev libxtst-dev libpcre3-dev libenchant-2-dev \
+            libnotify-dev libgtk2.0-dev libappindicator-dev \
+            lintian clamav
+
+      - name: Build the .deb
+        run: ./packaging/build-deb.sh
+
+      - name: Lintian
+        run: lintian --fail-on error dist/*.deb
+
+      - name: Scan the package for malware
+        run: |
+          sudo systemctl stop clamav-freshclam 2>/dev/null || true
+          sudo freshclam --quiet || { sleep 10; sudo freshclam --quiet; }
+          sudo mkdir -p /tmp/scan && sudo chown "$USER" /tmp/scan
+          dpkg-deb -x dist/*.deb /tmp/scan
+          clamscan --recursive --infected --no-summary dist/ /tmp/scan
+          clamscan --version | tee /tmp/clamav-version.txt
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum *.deb >SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*.deb
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          deb=$(basename dist/*.deb)
+          digest=$(cut -d' ' -f1 dist/SHA256SUMS)
+          clamav=$(cat /tmp/clamav-version.txt)
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${deb}"
+          cat >/tmp/notes.md <<EOF
+          Сборка из исходников на раннере GitHub: Ubuntu 22.04, amd64, X11.
+
+          \`\`\`bash
+          wget ${url}
+          sudo apt install ./${deb}
+          \`\`\`
+
+          | Проверка | Результат |
+          |---|---|
+          | сборка из этого коммита | да, \`$GITHUB_SHA\` |
+          | lintian | ошибок нет |
+          | ClamAV (\`${clamav}\`) | файлов с вирусами не найдено |
+          | provenance | \`gh attestation verify ${deb} --repo ${GITHUB_REPOSITORY}\` |
+
+          SHA256: \`${digest}\`
+          EOF
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.deb dist/SHA256SUMS --clobber
+            gh release edit "$TAG" --notes-file /tmp/notes.md
+          else
+            gh release create "$TAG" dist/*.deb dist/SHA256SUMS \
+              --title "$TAG" --notes-file /tmp/notes.md --verify-tag
+          fi

@@ -13,7 +13,7 @@ WORK=${WORK:-/tmp/xneur-xtest-build}
 
 BASE_COMMIT=5a964810103cf73783f8f8ebb2998be8a5b91eda
 PKG=xneur-xtest
-VER=0.21.0-xtest1
+VER=0.21.0-xtest2
 ARCH=$(dpkg --print-architecture)
 MAINTAINER="ajaxiis-rust <ajaxiis-rust@users.noreply.github.com>"
 

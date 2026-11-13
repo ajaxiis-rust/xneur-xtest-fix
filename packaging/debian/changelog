@@ -1,4 +1,14 @@
-xneur-xtest (@VERSION@) jammy; urgency=medium
+xneur-xtest (0.21.0-xtest2) jammy; urgency=medium
+
+  * Same code as 0.21.0-xtest1; the package is now built and published by
+    the release workflow of this repository.
+  * GitHub checks on every commit: build on Ubuntu 22.04, lintian, ClamAV
+    scan of the .deb, CodeQL for C, OpenSSF Scorecard, Dependabot.
+  * Release artifacts carry SHA256SUMS and build provenance.
+
+ -- ajaxiis-rust <ajaxiis-rust@users.noreply.github.com>  Fri, 13 Nov 2026 23:30:00 +0300
+
+xneur-xtest (0.21.0-xtest1) jammy; urgency=medium
 
   * Unofficial patched build of xneur/gxneur 0.21.0 (xneur-devel fork,
     commit 5a96481).

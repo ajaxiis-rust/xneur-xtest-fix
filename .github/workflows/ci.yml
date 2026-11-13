@@ -1,0 +1,79 @@
+name: build-and-scan
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install build and scan tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool pkg-config intltool gettext \
+            libx11-dev libxi-dev libxtst-dev libpcre3-dev libenchant-2-dev \
+            libnotify-dev libgtk2.0-dev libappindicator-dev \
+            lintian clamav
+
+      - name: Build the .deb
+        run: ./packaging/build-deb.sh
+
+      - name: Lintian
+        run: |
+          set -o pipefail
+          lintian --fail-on error dist/*.deb | tee /tmp/lintian.txt
+
+      - name: Update virus database
+        run: |
+          sudo systemctl stop clamav-freshclam 2>/dev/null || true
+          sudo freshclam --quiet || { sleep 10; sudo freshclam --quiet; }
+          clamscan --version
+
+      - name: Scan the package for malware
+        run: |
+          sudo mkdir -p /tmp/scan && sudo chown "$USER" /tmp/scan
+          dpkg-deb -x dist/*.deb /tmp/scan
+          clamscan --recursive --infected --no-summary dist/ /tmp/scan
+          echo "no infected files" > /tmp/clamav.txt
+
+      - name: Write the check summary
+        if: always()
+        run: |
+          {
+            echo "## Проверки пакета"
+            echo
+            echo "| Проверка | Результат |"
+            echo "|---|---|"
+            if [ -f dist/xneur-xtest_*.deb ]; then
+              echo "| сборка .deb | ok ($(du -h dist/*.deb | cut -f1)) |"
+            else
+              echo "| сборка .deb | FAILED |"
+            fi
+            if grep -q "^E:" /tmp/lintian.txt 2>/dev/null; then
+              echo "| lintian | errors, см. лог |"
+            else
+              echo "| lintian | ok, ошибок нет |"
+            fi
+            if [ -f /tmp/clamav.txt ]; then
+              echo "| ClamAV, база $(clamscan --version | awk '{print $2}') | файлов с вирусами не найдено |"
+            else
+              echo "| ClamAV | не выполнен |"
+            fi
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: xneur-xtest-deb
+          path: dist/*
+          if-no-files-found: error
