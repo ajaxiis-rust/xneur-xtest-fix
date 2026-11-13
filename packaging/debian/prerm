@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+# The daemon must not keep running with files that are about to disappear.
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+	pkill -x gxneur 2>/dev/null || true
+	pkill -x xneur 2>/dev/null || true
+fi
+
+exit 0

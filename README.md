@@ -1,12 +1,35 @@
-# xneur / gxneur 0.21.0 — патчи для современных X11-систем
+# xneur / gxneur 0.21.0 — патчи и готовая сборка для современных X11-систем
 
 Патчи к форку [xneur-devel](https://github.com/AndrewCrewKuznetsov/xneur-devel) 0.21.0
 (база: коммит `5a964810103cf73783f8f8ebb2998be8a5b91eda`, 18.10.2024),
 которые возвращают автоматическую смену раскладки EN ⇄ RU на актуальных
-дистрибутивах.
+дистрибутивах. Плюс скрипт, который собирает из этого один `.deb`.
 
 Проверено на **Ubuntu 22.04.5 LTS, XFCE 4.16, сеанс X11** (Xubuntu).
 Работает в обе стороны: `ghbdtn ` → `привет `, `руддщ ` → `hello `.
+
+## Быстрая установка (один файл)
+
+Версия пакета: **0.21.0-xtest1**, архитектура **amd64**, собрано и проверено
+на Ubuntu 22.04 (jammy).
+
+```bash
+wget https://github.com/ajaxiis-rust/xneur-xtest-fix/releases/latest/download/xneur-xtest_0.21.0-xtest1_amd64.deb
+sudo apt install ./xneur-xtest_0.21.0-xtest1_amd64.deb
+```
+
+`apt install ./файл.deb` сам подтянет зависимости. После установки:
+
+- gXNeur добавлен в автозапуск (`/etc/xdg/autostart/gxneur.desktop`) — появится
+  после следующего входа в сеанс;
+- запустить сразу: `gxneur &` или меню → Настройки → gXNeur;
+- значок в трее, настройки — в меню значка.
+
+Удалить: `sudo apt remove xneur-xtest` (конфиг `/etc/xneur/xneurrc` останется,
+`apt purge` удалит и его).
+
+Что внутри пакета: `xneur`, `gxneur`, `libxneur`/`libxnconfig`, плагины,
+словари и звуки, man-страницы, `.desktop`-файлы, автозапуск.
 
 ## Почему без патча не работает
 
@@ -28,7 +51,7 @@
 
 ## Что меняет патч
 
-Файл `xneur-0.21.0-xtest.patch` (300 строк, только ветка `xneur/`):
+Файл `xneur-0.21.0-xtest.patch` (только ветка `xneur/`):
 
 ### `lib/main/event.c`
 - `event_send_xkey()` переписан на `XTestFakeKeyEvent()`: нажатие и отпускание
@@ -67,81 +90,113 @@ LogLevel Log                # Trace писал каждую клавишу в ж
 
 ## Проверенная матрица
 
-| Приложение | Ввод | Результат |
-|---|---|---|
-| zenity (GTK3) | `ghbdtn ` | `привет ` |
-| xterm | `ghbdtn ` | `привет` |
-| xfce4-terminal (VTE) | `ghbdtn ` | `привет` |
-| zenity (раскладка RU) | `руддщ ` | `hello ` |
-| xfce4-terminal (раскладка RU) | `руддщ ` | `hello` |
+Клавиши подавались физическими кодами через XTEST (как с настоящей
+клавиатуры), в одном окне подряд, без ручного переключения раскладки.
+Строка `ghbdtn rullo terminal`, где второе слово набиралось уже в русской
+раскладке:
+
+| Приложение | Результат |
+|---|---|
+| zenity (GTK3) | `привет hello terminal` |
+| xterm | `привет hello terminal` |
+| xfce4-terminal (VTE) | `привет hello terminal` |
+
+То есть: `ghbdtn ` → `привет ` (раскладка переключилась на RU),
+`руддщ ` → `hello ` (переключилась обратно на EN), а настоящее английское
+слово `terminal` осталось без изменений. Отдельно проверено, что после
+коррекции раскладка остаётся переключённой (XkbLockGroup на группу RU
+держится, пока фокус в том же окне).
 
 Окружение: Ubuntu 22.04.5, XFCE 4.16, X11, XKB `us,ru`
 (`grp:win_space_toggle`), gcc 11, gxneur на GTK2, xneur-devel 0.21.0.
 
-## Сборка на Ubuntu 22.04
-
-Пакетов `xneur`/`gxneur` в репозиториях jammy нет — только из исходников.
+## Сборка .deb из исходников
 
 ```bash
 sudo apt install build-essential autoconf automake libtool pkg-config \
   intltool gettext libx11-dev libxi-dev libxtst-dev libpcre3-dev \
-  libenchant-2-dev libnotify-dev libgtk2.0-dev libappindicator-dev \
-  aspell-en aspell-ru hunspell-en-us hunspell-ru
+  libenchant-2-dev libnotify-dev libgtk2.0-dev libappindicator-dev
 
+git clone https://github.com/ajaxiis-rust/xneur-xtest-fix.git
+cd xneur-xtest-fix
+./packaging/build-deb.sh       # -> dist/xneur-xtest_0.21.0-xtest1_amd64.deb
+```
+
+Скрипт клонирует upstream на зафиксированный коммит, накладывает патч, собирает
+`xneur` и `gxneur` с `--prefix=/usr --sysconfdir=/etc`, укладывает всё в один
+архив и ставит метаданные из `packaging/debian/`. Правки метаданных — control,
+conffiles, postinst/prerm, shlibs, triggers, автозапуск.
+
+### Сборка вручную (без пакета)
+
+```bash
 git clone https://github.com/AndrewCrewKuznetsov/xneur-devel.git
 cd xneur-devel
+git apply ../xneur-0.21.0-xtest.patch
 
 # Заголовки enchant-2 в Debian лежат плоско, а код ждёт <enchant/enchant.h>
-mkdir -p /tmp/enchant-compat/enchant
-for h in enchant.h enchant-provider.h enchant++.h; do
-  ln -sf /usr/include/enchant-2/$h /tmp/enchant-compat/enchant/$h
-done
+mkdir -p /tmp/enchant-compat
+ln -sfn /usr/include/enchant-2 /tmp/enchant-compat/enchant
 
 cd xneur
-./autogen.sh
-./configure --prefix=/usr/local --with-sound=no --without-xosd \
-  --without-keylogger CPPFLAGS="-I/tmp/enchant-compat"
 touch INSTALL            # automake требует INSTALL, в репозитории его нет
-make -j4
-sudo make install && sudo ldconfig
+./autogen.sh --prefix=/usr/local --with-sound=no --without-xosd \
+  --without-keylogger CPPFLAGS="-I/tmp/enchant-compat"
+make -j4 && sudo make install && sudo ldconfig
 cd ..
 
 cd gxneur
-./autogen.sh
 touch README INSTALL TODO   # без них automake падает
-./configure --prefix=/usr/local
-make -j4
-sudo make install && sudo ldconfig
+./autogen.sh --prefix=/usr/local
+make -j4 && sudo make install && sudo ldconfig
 ```
 
-Установка кладёт конфиг в `/usr/local/etc/xneur/xneurrc`; **`make install`
-перезаписывает его шаблоном из `etc/xneurrc`** — применяйте в патче `xneurrc`
-до сборки или повторяйте настройку после переустановки.
+`make install` кладёт конфиг в `$sysconfdir/xneur/xneurrc` и **перезаписывает
+его шаблоном из `etc/xneurrc`** — свои правки держите в `~/.xneur/xneurrc`
+(он читается первым) или повторяйте настройку из GUI.
 
-Автозапуск (XFCE): `~/.config/autostart/gxneur.desktop` с `Exec=gxneur`.
+## Какой конфиг читается
+
+Порядок поиска в коде (`lib/config/xnconfig_files.c`):
+
+1. `~/.xneur/xneurrc` — пользовательский, перекрывает всё;
+2. `/etc/xneur/xneurrc` — из этого пакета (conffile, правки переживают
+   обновление);
+3. `/usr/share/xneur`.
+
+Если коррекция «не слушается», проверьте, нет ли у вас старого
+`~/.xneur/xneurrc` с `EducationMode Yes`.
 
 ## Известные ограничения
 
-- Горячая клавиша `Pause/Break` (принудительное исправление слова) в патче не
-  тестировалась — на тестовой клавиатуре её нет.
+- `Pause/Break` (принудительное исправление слова) и остальные горячие клавиши
+  в патче не тестировались — на тестовой клавиатуре этой клавиши нет.
 - Проверена пара EN/RU; остальные языки конфигурируются штатно (словари в
   `share/xneur/languages`).
+- `.deb` собран под amd64/jammy. На других архитектурах и выпусках
+  пересоберите `packaging/build-deb.sh` — код X11 не привязан к версии
+  дистрибутива.
 - Патч написан против master форка на 18.10.2024 — при обновлении базы
   возможны конфликты.
+- gxneur — на GTK2, поэтому в дистрибутивах без `libgtk2.0-0` потребуется
+  собрать его отдельно.
 
 ## Лицензия
 
 GPL-2.0-or-later, как и сам xneur (см. `COPYING`).
-Патч — производная работа; ссылки на upstream сохранены.
+Патч и пакет — производная работа; ссылки на upstream сохранены.
 
 ---
 
 ## English summary
 
-Patch set for **xneur/gxneur 0.21.0** (xneur-devel fork) that restores
-automatic EN ⇄ RU keyboard layout correction on modern X11 desktops.
-Tested on Ubuntu 22.04.5 LTS, XFCE, X11: `ghbdtn ` → `привет `,
-`руддщ ` → `hello `, including terminals (xterm, VTE).
+Patched build of **xneur/gxneur 0.21.0** (xneur-devel fork) that restores
+automatic EN ⇄ RU keyboard layout correction on modern X11 desktops, plus a
+script that produces a single installable `.deb`.
+
+Install: download
+`xneur-xtest_0.21.0-xtest1_amd64.deb` from the latest release and run
+`sudo apt install ./xneur-xtest_0.21.0-xtest1_amd64.deb`.
 
 Three fixes:
 1. Text is injected with `XTestFakeKeyEvent` instead of `XSendEvent`
@@ -150,3 +205,7 @@ Three fixes:
    is re-sent after the corrected word (fixes the lost first letter and space).
 3. XI2 echo of our own XTEST injection is filtered through a press-keycode
    queue, flushed on focus change (fixes self-correction loops).
+
+Verified on Ubuntu 22.04.5 LTS, XFCE, X11 with physical keycodes in one line:
+`ghbdtn rullo terminal` → `привет hello terminal` in zenity, xterm and
+xfce4-terminal.

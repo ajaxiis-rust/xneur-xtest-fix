@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+	echo "xneur-xtest: gXNeur запустится при следующем входе в сеанс."
+	echo "            Сейчас: запустите gXNeur из меню (Настройки -> gXNeur)"
+	echo "            или выполните 'gxneur &' в терминале."
+fi
+
+exit 0

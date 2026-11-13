@@ -1,0 +1,25 @@
+Package: @PKG@
+Version: @VERSION@
+Architecture: @ARCH@
+Maintainer: @MAINTAINER@
+Installed-Size: @SIZE@
+Section: x11
+Priority: optional
+Depends: libc6 (>= 2.34), libglib2.0-0 (>= 2.66), libgtk2.0-0 (>= 2.24), libappindicator1 | libayatana-appindicator3-1, libnotify4, libenchant-2-2, libpcre3, libx11-6, libxi6, libxtst6
+Recommends: aspell-en, aspell-ru, hunspell-en-us, hunspell-ru
+Conflicts: xneur, gxneur, libxneur, libxnconfig
+Replaces: xneur, gxneur
+Homepage: https://github.com/ajaxiis-rust/xneur-xtest-fix
+Description: automatic keyboard layout switcher (xneur 0.21.0, XTEST fixes)
+ Patched build of xneur/gxneur 0.21.0 from the xneur-devel fork. It brings
+ back automatic EN<->RU layout correction on modern X11 desktops.
+ .
+ Three fixes over upstream: the corrected word is typed with
+ XTestFakeKeyEvent instead of XSendEvent (xterm and VTE accept it), the word
+ is deleted together with the delimiter that was already delivered and the
+ delimiter is re-sent afterwards, and the XI2 echo of the program's own
+ injection is filtered out so it no longer corrects itself.
+ .
+ Tested on Ubuntu 22.04.5 LTS with XFCE 4.16 and an X11 session:
+ "ghbdtn " becomes "привет " and "руддщ " becomes "hello " in zenity, xterm
+ and xfce4-terminal.

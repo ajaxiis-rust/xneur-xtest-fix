@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=gXNeur
+Name[ru]=gXNeur
+Comment=Automatic keyboard layout switcher
+Comment[ru]=Автоматический переключатель раскладки клавиатуры
+Exec=gxneur
+Icon=gxneur
+Terminal=false
+Categories=Utility;Accessibility;
+X-GNOME-Autostart-enabled=true

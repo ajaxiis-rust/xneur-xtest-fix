@@ -1,0 +1,13 @@
+xneur-xtest (@VERSION@) jammy; urgency=medium
+
+  * Unofficial patched build of xneur/gxneur 0.21.0 (xneur-devel fork,
+    commit 5a96481).
+  * Inject the corrected word with XTestFakeKeyEvent instead of XSendEvent,
+    so xterm and VTE terminals accept it.
+  * Delete the word together with the delimiter that was already delivered
+    and re-send the delimiter after the corrected word.
+  * Filter the XI2 echo of the program's own XTEST injection, flush the
+    filter on focus change, and drop the autocompletion/education defaults.
+  * Ship an XDG autostart entry for gxneur.
+
+ -- ajaxiis-rust <ajaxiis-rust@users.noreply.github.com>  Fri, 13 Nov 2026 23:30:00 +0300
