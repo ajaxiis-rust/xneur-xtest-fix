@@ -1,0 +1,300 @@
+diff --git a/xneur/etc/xneurrc b/xneur/etc/xneurrc
+index 9d89c6c..f617069 100644
+--- a/xneur/etc/xneurrc
++++ b/xneur/etc/xneurrc
+@@ -13,7 +13,7 @@ ManualMode No
+ #LogLevel Log
+ #LogLevel Debug
+ #LogLevel Trace
+-LogLevel Trace
++LogLevel Log
+ 
+ # Define unused languages
+ # Example:
+@@ -135,7 +135,7 @@ AddSound UnblockKeyboardAndMouseEvents
+ # This option enable or disable self education of xneur
+ # Example:
+ #EducationMode No
+-EducationMode Yes
++EducationMode No
+ 
+ # This option enable or disable layout remember for each window
+ # Example:
+@@ -159,7 +159,7 @@ SaveSelectionMode Yes
+ RotateLayoutAfterChangeSelectedMode No
+ 
+ # This option define delay before sendind events to application (in milliseconds between 0 to 50).
+-SendDelay 0
++SendDelay 30
+ 
+ # This option enable or disable logging keyboard
+ # Example:
+@@ -187,17 +187,17 @@ LogSize 1048576
+ # This option enable or disable correction of iNCIDENTAL CapsLock
+ # Example:
+ #CorrectIncidentalCaps Yes
+-CorrectIncidentalCaps Yes
++CorrectIncidentalCaps No
+ 
+ # This option enable or disable correction of two CApital letter
+ # Example:
+ #CorrectTwoCapitalLetter Yes
+-CorrectTwoCapitalLetter Yes
++CorrectTwoCapitalLetter No
+ 
+ # This option enable or disable correction of small letter to capital letter after dot
+ # Example:
+ #CorrectCapitalLetterAfterDot Yes
+-CorrectCapitalLetterAfterDot Yes
++CorrectCapitalLetterAfterDot No
+ 
+ # This option enable or disable correction of two space with a comma and a space
+ # Example:
+@@ -212,7 +212,7 @@ CorrectTwoMinusWithDash No
+ # This option enable or disable correction of two minus with a emdash
+ # Example:
+ #CorrectDashWithEmDash Yes
+-CorrectDashWithEmDash Yes
++CorrectDashWithEmDash No
+ 
+ # This option enable or disable correction of (c) with a copyright sign
+ # Example:
+@@ -333,7 +333,7 @@ AddPopup UnblockKeyboardAndMouseEvents
+ # This option disable or enable checking language on input process
+ # Example:
+ #CheckOnProcess Yes
+-CheckOnProcess Yes
++CheckOnProcess No
+ 
+ # This option disable or enable CapsLock use
+ # Example:
+@@ -348,7 +348,7 @@ CorrectSpaceWithPunctuation No
+ # This option disable or enable pattern mining and recognition (autocompletion)
+ # Example:
+ #Autocompletion No
+-Autocompletion Yes
++Autocompletion No
+ 
+ # This option disable or enable adding space after autocompletion
+ # Example:
+@@ -379,7 +379,7 @@ TroubleshootEnter No
+ # Disable autoswitching if pressed tab
+ TroubleshootTab No
+ # Disable autoswitching if layout switched
+-TroubleshootSwitch Yes
++TroubleshootSwitch No
+ # Disable autoswitching for full screen apps
+ TroubleshootFullScreen Yes
+ 
+@@ -389,7 +389,7 @@ TroubleshootFullScreen Yes
+ #SetDontSendKeyReleaseApp libreoffice-writer
+ 
+ # Work-arround for compatibility with the completion
+-CompatibilityWithCompletion Yes
++CompatibilityWithCompletion No
+ 
+ # Disabling this option will add any application to the list of excluded applications.
+ TrackingInput Yes
+diff --git a/xneur/lib/main/event.c b/xneur/lib/main/event.c
+index 7c357d7..27b7693 100644
+--- a/xneur/lib/main/event.c
++++ b/xneur/lib/main/event.c
+@@ -18,8 +18,7 @@
+  */
+ 
+ #include <X11/XKBlib.h>
+-//#include <X11/Xlib.h>
+-//#include <X11/extensions/XTest.h>
++#include <X11/extensions/XTest.h>
+ 
+ #include <stdlib.h>
+ #include <stdio.h>
+@@ -137,55 +136,82 @@ unsigned long long current_timestamp(Window window)
+ 	}
+ }
+ 
+-void event_send_xkey(struct _event *p, KeyCode kc, int modifiers)
++// Own-injection echo filter: XTEST-injected keys come back to us as XI2
++// master-device events, so a queue of what we injected filters them out.
++#define OWN_QUEUE_SIZE 256
++static KeyCode own_queue_kc[OWN_QUEUE_SIZE];
++static int own_queue_head = 0;
++static int own_queue_count = 0;
++static Window own_queue_window = None;
++static Window main_event_owner_window = None;
++
++static void own_queue_push(KeyCode kc)
+ {
+-	char *app_name = NULL;
+-	app_name = get_wm_class_name(p->owner_window);
++	if (own_queue_count >= OWN_QUEUE_SIZE)
++		return;
++	if (own_queue_count == 0)
++		own_queue_window = main_event_owner_window;
++	int idx = (own_queue_head + own_queue_count) % OWN_QUEUE_SIZE;
++	own_queue_kc[idx] = kc;
++	own_queue_count++;
++}
+ 
+-	int is_delay = xconfig->delay_send_key_apps->exist(xconfig->delay_send_key_apps, app_name, BY_PLAIN);
+-	if (is_delay)
+-	{
+-		usleep(xconfig->send_delay * 1000);
+-	}
++Window event_own_queue_window(void)
++{
++	return own_queue_window;
++}
++
++void event_flush_own_queue(void)
++{
++	own_queue_head = 0;
++	own_queue_count = 0;
++	own_queue_window = None;
++}
+ 
+-	p->event.type			= KeyPress;
+-	p->event.xkey.type		= KeyPress;
+-	p->event.xkey.window		= p->owner_window;
+-	p->event.xkey.root		= RootWindow(main_window->display, DefaultScreen(main_window->display));
+-	p->event.xkey.subwindow		= None;
+-	p->event.xkey.same_screen	= True;
+-	p->event.xkey.display		= main_window->display;
+-	p->event.xkey.state		= modifiers;
+-	p->event.xkey.keycode		= kc;
+-	//p->event.xkey.time		= CurrentTime;
+-	p->event.xkey.time		= current_timestamp(p->owner_window);
+-
+-	if (xconfig->dont_send_key_release_apps->exist(xconfig->dont_send_key_release_apps, app_name, BY_PLAIN))
++int event_is_own_injection(KeyCode kc)
++{
++	if (own_queue_count == 0)
++		return 0;
++	if (own_queue_kc[own_queue_head] == kc)
+ 	{
+-		XSendEvent(main_window->display, p->owner_window, TRUE, NoEventMask, &p->event);
+-		XFlush(main_window->display);
+-		log_message(TRACE, _("The event KeyRelease is not sent to the window (ID %d) with name '%s'"), p->owner_window, app_name);
+-		free(app_name);
+-		return;
++		own_queue_head = (own_queue_head + 1) % OWN_QUEUE_SIZE;
++		own_queue_count--;
++		if (own_queue_count == 0)
++			own_queue_window = None;
++		return 1;
+ 	}
++	// A foreign event arrived while echoes were pending: desync, drop the queue.
++	event_flush_own_queue();
++	return 0;
++}
+ 
+-	XSendEvent(main_window->display, p->owner_window, TRUE, NoEventMask, &p->event);
++static void xtest_send(KeyCode kc, int press)
++{
++	XTestFakeKeyEvent(main_window->display, kc, press, 0);
++	if (press)
++		own_queue_push(kc);
+ 	XFlush(main_window->display);
++}
+ 
+-	if (is_delay)
+-	{
+-		usleep(xconfig->send_delay * 1000);
+-	}
++void event_send_xkey(struct _event *p, KeyCode kc, int modifiers)
++{
++	// XTEST injection: accepted by every application (GTK3, VTE, Firefox),
++	// unlike XSendEvent which modern toolkits drop or reject.
++	main_event_owner_window = p->owner_window;
++	KeyCode shift_kc = XKeysymToKeycode(main_window->display, XK_Shift_L);
++	int need_shift = ((modifiers & ShiftMask) && shift_kc != 0);
+ 
+-	p->event.type			= KeyRelease;
+-	p->event.xkey.type		= KeyRelease;
+-	//p->event.xkey.time		= CurrentTime;
+-	p->event.xkey.time		= current_timestamp(p->owner_window);
++	if (need_shift)
++		xtest_send(shift_kc, True);
+ 
+-	XSendEvent(main_window->display, p->owner_window, TRUE, NoEventMask, &p->event);
+-	XFlush(main_window->display);
++	xtest_send(kc, True);
++	xtest_send(kc, False);
++
++	if (need_shift)
++		xtest_send(shift_kc, False);
+ 
+-	free(app_name);
++	if (xconfig->send_delay > 0)
++		usleep(xconfig->send_delay * 1000);
+ }
+ 
+ static void common_send_xkey(struct _event *p, int count, int input_keycode, int Mask_modifier)
+diff --git a/xneur/lib/main/event.h b/xneur/lib/main/event.h
+index 47da862..75e2f54 100644
+--- a/xneur/lib/main/event.h
++++ b/xneur/lib/main/event.h
+@@ -25,6 +25,8 @@
+ #include "buffer.h"
+ 
+ int get_key_state(int key);
++int event_is_own_injection(KeyCode kc);
++void event_flush_own_queue(void);
+ 
+ struct _event
+ {
+diff --git a/xneur/lib/main/program.c b/xneur/lib/main/program.c
+index cc1c3bc..6776b60 100644
+--- a/xneur/lib/main/program.c
++++ b/xneur/lib/main/program.c
+@@ -333,6 +333,9 @@ static Window program_update(struct _program *p)
+ 	int changed = p->focus->get_focus_status(p->focus, &p->app_forced_mode, &p->app_excluded, &p->app_autocompletion_mode);
+ 	if (changed) {
+ 		p->event->set_owner_window(p->event, p->focus->owner_window);
++		// Pending XTEST echoes belong to the previous window; drop them so a
++		// new window's real keys are never mistaken for our own injection.
++		event_flush_own_queue();
+ 		// If application is excluded from tracking, disable grabbing input, otherwise enable
+ 		p->focus->update_grab_events(p->focus, p->has_x_input_extension, !p->app_excluded);
+ 
+@@ -545,6 +548,11 @@ static void program_process_input(struct _program *p)
+ 							// Processing received event
+ 							p->event->event.xkey.state   = xi_event->mods.effective;
+ 							p->event->event.xkey.keycode = xi_event->detail;
++							if (event_is_own_injection(p->event->event.xkey.keycode))
++							{
++								log_message(TRACE, _("Skipped own injected XI_KeyPress '%s' == %u"), XKeysymToString(XkbKeycodeToKeysym(main_window->display, p->event->event.xkey.keycode, 0, 0)), p->event->event.xkey.keycode);
++								break;
++							}
+ 							process_key(p, type, KeyPress, _("Received XI_KeyPress '%s' == %u (event type %d)"));
+ 							break;
+ 						}
+@@ -2632,7 +2640,27 @@ static void program_change_word(struct _program *p, enum _change_action action)
+ 			int len = p->buffer->cur_pos;
+ 			if (p->last_action == ACTION_AUTOCOMPLETION)
+ 				len = p->buffer->cur_pos + 1;
+-			program_send_string_silent(p, len);
++
++			// The delimiter that ended the word was already delivered to the
++			// application (keys are observed, not grabbed), so delete it
++			// together with the word and re-send it after the corrected one.
++			KeyCode delim_kc = 0;
++			int delim_shift = 0;
++			KeySym delim_ks = XkbKeycodeToKeysym(main_window->display, p->event->default_event.xkey.keycode, 0, 0);
++			for (int i = 0; i < xconfig->delimeters_count; i++)
++			{
++				if (xconfig->delimeters[i] == delim_ks)
++				{
++					delim_kc = p->event->default_event.xkey.keycode;
++					delim_shift = p->event->default_event.xkey.state & ShiftMask;
++					break;
++				}
++			}
++
++			program_send_string_silent(p, len + (delim_kc != 0 ? 1 : 0));
++
++			if (delim_kc != 0)
++				p->event->send_xkey(p->event, delim_kc, delim_shift);
+ 
+ 			p->last_action = ACTION_NONE;
+ 
