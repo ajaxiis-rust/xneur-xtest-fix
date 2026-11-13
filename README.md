@@ -3,7 +3,6 @@
 [![build-and-scan](https://github.com/ajaxiis-rust/xneur-xtest-fix/actions/workflows/ci.yml/badge.svg)](https://github.com/ajaxiis-rust/xneur-xtest-fix/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/ajaxiis-rust/xneur-xtest-fix/actions/workflows/codeql.yml/badge.svg)](https://github.com/ajaxiis-rust/xneur-xtest-fix/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/ajaxiis-rust/xneur-xtest-fix/badge)](https://securityscorecards.dev/viewer/?uri=github.com/ajaxiis-rust/xneur-xtest-fix)
-[![ClamAV](https://img.shields.io/badge/ClamAV-проверено-1f9e3d)](https://github.com/ajaxiis-rust/xneur-xtest-fix/actions/workflows/ci.yml)
 
 Патчи к форку [xneur-devel](https://github.com/AndrewCrewKuznetsov/xneur-devel) 0.21.0
 (база: коммит `5a964810103cf73783f8f8ebb2998be8a5b91eda`, 18.10.2024),
