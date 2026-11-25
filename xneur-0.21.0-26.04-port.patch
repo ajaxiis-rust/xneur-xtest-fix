@@ -1,0 +1,142 @@
+diff --git a/gxneur/configure.ac b/gxneur/configure.ac
+index e4d64e8..837a3d3 100644
+--- a/gxneur/configure.ac
++++ b/gxneur/configure.ac
+@@ -68,9 +68,9 @@ AC_ARG_WITH(appindicator, [  --without-appindicator	Compile without AppIndicator
+ if test "x$with_appindicator" != "xno"; then
+ 	APPINDICATOR_REQUIRED=0.2.9
+ 
+-	PKG_CHECK_MODULES(APP_INDICATOR, [appindicator-0.1 >= $APPINDICATOR_REQUIRED], found_appindicator="yes", found_appindicator="no")
++	PKG_CHECK_MODULES(APP_INDICATOR, [ayatana-appindicator3-0.1 >= $APPINDICATOR_REQUIRED], found_appindicator="yes", found_appindicator="no")
+ 	if test "x$found_appindicator" = "xno"; then
+-		PKG_CHECK_MODULES(APP_INDICATOR, [appindicator-0.1 < $APPINDICATOR_REQUIRED], found_deprec_appindicator="yes", found_deprec_appindicator="no")
++		PKG_CHECK_MODULES(APP_INDICATOR, [ayatana-appindicator3-0.1 < $APPINDICATOR_REQUIRED], found_deprec_appindicator="yes", found_deprec_appindicator="no")
+ 
+ 		if test "x$found_deprec_appindicator" = "xyes"; then
+ 			AC_DEFINE(HAVE_APP_INDICATOR, 1, [Have AppIndicator])
+diff --git a/gxneur/src/trayicon.h b/gxneur/src/trayicon.h
+index d3aac73..4e05815 100644
+--- a/gxneur/src/trayicon.h
++++ b/gxneur/src/trayicon.h
+@@ -25,7 +25,7 @@
+ #define MAX_LAYOUTS 4
+ 
+ #ifdef HAVE_APP_INDICATOR
+-#include <libappindicator/app-indicator.h>
++#include <libayatana-appindicator/app-indicator.h>
+ #endif
+ 
+ struct _tray_icon
+diff --git a/xneur/configure.ac b/xneur/configure.ac
+index 4d72a1f..de3f8d0 100644
+--- a/xneur/configure.ac
++++ b/xneur/configure.ac
+@@ -143,7 +143,7 @@ if test "x$with_debug" == "xyes"; then
+ 	AC_DEFINE(WITH_DEBUG, 1, [Define if you want debug support])
+ fi
+ 
+-PKG_CHECK_MODULES(PCRE, [libpcre >= 5.0])
++PKG_CHECK_MODULES(PCRE, [libpcre2-8])
+ 
+ AC_ARG_WITH(keylogger, [  --without-keylogger	  Compile without keylogger function])
+ if test "x$with_keylogger" != "xno"; then
+diff --git a/xneur/lib/misc/regexp.c b/xneur/lib/misc/regexp.c
+index 728036e..12902d0 100644
+--- a/xneur/lib/misc/regexp.c
++++ b/xneur/lib/misc/regexp.c
+@@ -21,7 +21,8 @@
+ #  include "config.h"
+ #endif
+ 
+-#include <pcre.h>
++#define PCRE2_CODE_UNIT_WIDTH 8
++#include <pcre2.h>
+ 
+ #include <string.h>
+ #include <stdio.h>
+@@ -31,45 +32,41 @@
+ 
+ int check_regexp_match(const char *str, const char *pattern)
+ {
+-	int options = PCRE_UTF8;
+-	const char *error;
+-	int erroffset;
+-	
+-	//log_message(DEBUG, "Processing word '%s' against regular expression '%s'", str, pattern);
+-	
+-	const unsigned char *tables = pcre_maketables();
+-	pcre *re = pcre_compile(pattern, options, &error, &erroffset, tables);
+-	if (!re)
++	int errorcode;
++	PCRE2_SIZE erroffset;
++
++	pcre2_code *re = pcre2_compile((PCRE2_SPTR)pattern, PCRE2_ZERO_TERMINATED,
++				       PCRE2_UTF, &errorcode, &erroffset, NULL);
++	if (re == NULL)
+ 	{
+-		log_message(ERROR, _("Can't compile regular expression '%s'"), pattern);
++		PCRE2_UCHAR buffer[256];
++		pcre2_get_error_message(errorcode, buffer, sizeof(buffer));
++		log_message(ERROR, _("Can't compile regular expression '%s': %s"),
++			    pattern, (const char *)buffer);
+ 		return FALSE;
+ 	}
+ 
+-	int str_len = strlen(str);
+-
+-	int ovector[50];
+-	int count = pcre_exec(re, NULL, str, str_len, 0, 0, ovector, 50);
+-	if (count <= 0 && count != PCRE_ERROR_NOMATCH)
++	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(re, NULL);
++	if (match_data == NULL)
+ 	{
+-		log_message(ERROR, _("Can't exec regular expression '%s', eror code %d"), pattern, count);
+-		pcre_free(re);
+-		pcre_free((void*)tables);
++		pcre2_code_free(re);
++		log_message(ERROR, _("Can't allocate match data for regular expression '%s'"),
++			    pattern);
+ 		return FALSE;
+ 	}
+ 
+-	pcre_free(re);
+-	pcre_free((void*)tables);
+-	
+-	if (count == PCRE_ERROR_NOMATCH)
+-		return FALSE;
+-	
+-	const char *pcre_string = NULL;
+-	if(pcre_get_substring(str, ovector, count, 0, &pcre_string) < 0)
++	int rc = pcre2_match(re, (PCRE2_SPTR)str, PCRE2_ZERO_TERMINATED,
++			     0, 0, match_data, NULL);
++
++	pcre2_match_data_free(match_data);
++	pcre2_code_free(re);
++
++	if (rc >= 0)
++		return TRUE;
++
++	if (rc == PCRE2_ERROR_NOMATCH)
+ 		return FALSE;
+ 
+-	//log_message(TRACE, _("Match word '%s' and PERL pattern '%s'"), str, pattern);
+-	
+-	pcre_free_substring(pcre_string);
+-		
+-	return TRUE;
++	log_message(ERROR, _("Can't exec regular expression '%s', error code %d"), pattern, rc);
++	return FALSE;
+ }
+diff --git a/xneur/xnconfig.pc.in b/xneur/xnconfig.pc.in
+index b241329..1125a87 100644
+--- a/xneur/xnconfig.pc.in
++++ b/xneur/xnconfig.pc.in
+@@ -5,7 +5,7 @@ includedir=@includedir@
+ 
+ Name: xnconfig
+ Description: XNeur config library
+-Requires: libpcre
++Requires: libpcre2-8
+ Version: @VERSION@
+ Libs: -L@libdir@ -lxnconfig @PCRE_LIBS@ @LDFLAGS@ @ADDITIONAL_LIBS@
+ Cflags: -I@includedir@

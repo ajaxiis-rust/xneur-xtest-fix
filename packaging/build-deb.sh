@@ -13,7 +13,7 @@ WORK=${WORK:-/tmp/xneur-xtest-build}
 
 BASE_COMMIT=5a964810103cf73783f8f8ebb2998be8a5b91eda
 PKG=xneur-xtest
-VER=0.21.0-xtest2
+VER=0.21.0-xtest3
 ARCH=$(dpkg --print-architecture)
 MAINTAINER="ajaxiis-rust <ajaxiis-rust@users.noreply.github.com>"
 
@@ -32,6 +32,7 @@ git -C "$SRC" remote add origin https://github.com/AndrewCrewKuznetsov/xneur-dev
 git -C "$SRC" fetch -q --depth 1 origin "$BASE_COMMIT"
 git -C "$SRC" checkout -q FETCH_HEAD
 git -C "$SRC" apply "$REPO/xneur-0.21.0-xtest.patch"
+git -C "$SRC" apply "$REPO/xneur-0.21.0-26.04-port.patch"
 
 # jammy ships /usr/include/enchant-2/*.h, the sources include <enchant/enchant.h>
 say "enchant-2 header shim"

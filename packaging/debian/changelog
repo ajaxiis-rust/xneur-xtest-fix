@@ -1,3 +1,11 @@
+xneur-xtest (0.21.0-xtest3) resolute; urgency=medium
+
+  * Port to Ubuntu 26.04: PCRE1 (libpcre3) and AppIndicator1 were removed
+    from the archive, so libxneur now uses PCRE2 (libpcre2-8-0) and gxneur
+    uses ayatana-appindicator (libayatana-appindicator3-1).
+
+ -- ajaxiis-rust <ajaxiis-rust@users.noreply.github.com>  Tue, 25 Nov 2026 22:40:00 +0300
+
 xneur-xtest (0.21.0-xtest2) jammy; urgency=medium
 
   * Same code as 0.21.0-xtest1; the package is now built and published by

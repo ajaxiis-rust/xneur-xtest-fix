@@ -21,8 +21,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential autoconf automake libtool pkg-config intltool gettext \
-            libx11-dev libxi-dev libxtst-dev libpcre3-dev libenchant-2-dev \
-            libnotify-dev libgtk2.0-dev libappindicator-dev \
+            libx11-dev libxi-dev libxtst-dev libpcre2-dev libenchant-2-dev \
+            libnotify-dev libgtk2.0-dev libayatana-appindicator3-dev \
             lintian clamav patchelf
 
       - name: Build the .deb
