@@ -1,8 +1,19 @@
+xneur-xtest (0.21.0-xtest4) resolute; urgency=medium
+
+  * gxneur: port the GUI from GTK2 to GTK3 and drop the obsolete
+    XEmbed/StatusIcon tray engines, keeping ayatana-appindicator3 (SNI) as
+    the only tray. Fixes the GTK2/GTK3 symbol clash that crashed gxneur at
+    startup on Ubuntu 24.04+.
+
+ -- ajaxiis-rust <ajaxiis-rust@users.noreply.github.com>  Tue, 25 Nov 2026 23:00:00 +0300
+
 xneur-xtest (0.21.0-xtest3) resolute; urgency=medium
 
   * Port to Ubuntu 26.04: PCRE1 (libpcre3) and AppIndicator1 were removed
-    from the archive, so libxneur now uses PCRE2 (libpcre2-8-0) and gxneur
-    uses ayatana-appindicator (libayatana-appindicator3-1).
+    from the archive, so libxneur now uses PCRE2 (libpcre2-8-0).
+  * Port gxneur from GTK2 to GTK3 and from AppIndicator1 to
+    ayatana-appindicator3 (SNI), dropping the obsolete XEmbed/StatusIcon
+    tray engines.
 
  -- ajaxiis-rust <ajaxiis-rust@users.noreply.github.com>  Tue, 25 Nov 2026 22:40:00 +0300
 

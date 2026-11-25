@@ -147,7 +147,7 @@ LogLevel Log                # Trace писал каждую клавишу в ж
 ```bash
 sudo apt install build-essential autoconf automake libtool pkg-config \
   intltool gettext libx11-dev libxi-dev libxtst-dev libpcre2-dev \
-  libenchant-2-dev libnotify-dev libgtk2.0-dev libayatana-appindicator3-dev patchelf
+  libenchant-2-dev libnotify-dev libgtk-3-dev libayatana-appindicator3-dev patchelf
 
 git clone https://github.com/ajaxiis-rust/xneur-xtest-fix.git
 cd xneur-xtest-fix

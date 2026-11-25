@@ -1,8 +1,27 @@
 diff --git a/gxneur/configure.ac b/gxneur/configure.ac
-index e4d64e8..837a3d3 100644
+index e4d64e8..a5718ee 100644
 --- a/gxneur/configure.ac
 +++ b/gxneur/configure.ac
-@@ -68,9 +68,9 @@ AC_ARG_WITH(appindicator, [  --without-appindicator	Compile without AppIndicator
+@@ -51,26 +51,17 @@ else
+ 	AC_SUBST(X11_LIBS)
+ fi
+ 
+-#PKG_CHECK_MODULES(GTK, [gtk+-3.0], found_gtk="yes", found_gtk="no")
+-#if test "x$found_gtk" = "xno"; then
+-	PKG_CHECK_MODULES(GTK, [gtk+-2.0 >= 2.20.0], found_gtk="yes", found_gtk="no")
+-	if test "x$found_gtk" = "xno"; then
+-		PKG_CHECK_MODULES(GTK, [gtk+-2.0 < 2.20.0])
+-	else
+-		AC_DEFINE(WITH_GTK_NEW, 1, [Define if you use GTK+ >= 2.20.0 support])
+-	fi
+-#else
+-#	AC_DEFINE(WITH_GTK_NEW, 1, [Define if you use GTK+ >= 2.20.0 support])
+-#fi
++PKG_CHECK_MODULES(GTK, [gtk+-3.0 >= 3.0.0])
++AC_DEFINE(WITH_GTK_NEW, 1, [Define if you use GTK+ >= 3.0.0 support])
+ 
+ 
+ AC_ARG_WITH(appindicator, [  --without-appindicator	Compile without AppIndicator library support])
  if test "x$with_appindicator" != "xno"; then
  	APPINDICATOR_REQUIRED=0.2.9
  
@@ -14,11 +33,305 @@ index e4d64e8..837a3d3 100644
  
  		if test "x$found_deprec_appindicator" = "xyes"; then
  			AC_DEFINE(HAVE_APP_INDICATOR, 1, [Have AppIndicator])
+diff --git a/gxneur/src/Makefile.am b/gxneur/src/Makefile.am
+index f225213..3ac3bc4 100644
+--- a/gxneur/src/Makefile.am
++++ b/gxneur/src/Makefile.am
+@@ -10,8 +10,6 @@ gxneur_SOURCES =		\
+ 	callbacks.h		\
+ 	configuration.c		\
+ 	configuration.h		\
+-	tray_widget.c		\
+-	tray_widget.h		\
+ 	trayicon.c		\
+ 	trayicon.h		\
+ 	main.c			\
+diff --git a/gxneur/src/trayicon.c b/gxneur/src/trayicon.c
+index a98c9ad..a9469a9 100644
+--- a/gxneur/src/trayicon.c
++++ b/gxneur/src/trayicon.c
+@@ -194,85 +194,6 @@ GtkMenu* create_menu(struct _tray_icon *tray, int state)
+  	return GTK_MENU(menu);
+ }
+ 
+-gboolean tray_icon_press(GtkWidget *widget, GdkEventButton *event)
+-{
+-	if (widget){};
+-
+-	if (event->button == 2)
+-	{
+-		xneur_start_stop();
+-		return FALSE;
+-	}
+-
+-	if (event->button == 1)
+-	{
+-		set_next_kbd_group(dpy);
+-		return FALSE;
+-	}
+-
+-	gtk_menu_popup(GTK_MENU(tray->menu), NULL, NULL, NULL, NULL, event->button, event->time);
+-
+-	return FALSE;
+-}
+-
+-void status_icon_on_click(GtkStatusIcon *status_icon,
+-                        gpointer user_data)
+-{
+-	if (status_icon || user_data){};
+-	set_next_kbd_group(dpy);
+-}
+-
+-void status_icon_on_menu(GtkStatusIcon *status_icon, guint button,
+-                       guint activate_time, gpointer user_data)
+-{
+-	if (status_icon || user_data){};
+-
+-	gtk_menu_popup(GTK_MENU(tray->menu), NULL, NULL, NULL, NULL, button, activate_time);
+-}
+-
+-GdkPixbuf *text_to_gtk_pixbuf (gchar *text)
+-{
+-	GtkWidget *scratch = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+-	gtk_widget_realize (scratch);
+-	//GtkStyle *style = gtk_widget_get_style(scratch);
+-	//gchar *bgcolor = gdk_color_to_string(&style->bg[GTK_STATE_NORMAL]);
+-	//gchar *textcolor = gdk_color_to_string(&style->text[GTK_STATE_NORMAL]);
+-	PangoLayout *layout = gtk_widget_create_pango_layout (scratch, NULL);
+-	//g_object_unref(style);
+-	gtk_widget_destroy (scratch);
+-
+-	//gchar *markup = g_strdup_printf ("<span bgcolor='%s' color='%s'>%s</span>", bgcolor, textcolor, text);
+-	//gchar *markup = g_strdup_printf ("<span color='%s'>%s</span>", textcolor, text);
+-	gchar *markup = g_strdup_printf ("%s", text);
+-	pango_layout_set_markup (layout, markup, -1);
+-	g_free(markup);
+-	//g_free (bgcolor);
+-	//g_free (textcolor);
+-
+-	int width = 0;
+-	int heigth = 0;
+-	pango_layout_get_size (layout, &width, &heigth);
+-	width = width/PANGO_SCALE;
+-	heigth = heigth/PANGO_SCALE;
+-
+-	GdkPixbuf *pb = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, width, heigth);
+-	gdk_pixbuf_fill(pb, 0xffffffff);
+-
+-	GdkPixmap *pm = gdk_pixmap_new (NULL, width, heigth, 24);
+-	GdkGC *gc = gdk_gc_new (pm);
+-	gdk_draw_pixbuf (pm, gc, pb, 0, 0, 0, 0, width, heigth, GDK_RGB_DITHER_NONE, 0, 0);
+-
+-	gdk_draw_layout (pm, gc, 0, 0, layout);
+-
+-
+-	g_object_unref(layout);
+-	g_object_unref(gc);
+-
+-	GdkPixbuf *ret = gdk_pixbuf_get_from_drawable (NULL, pm, NULL, 0, 0, 0, 0, width, heigth);
+-	g_object_unref(pb);
+-	return ret;
+-}
+-
+ static const char *get_tray_icon_name (char *name)
+ {
+ 	const char * icon_name;
+@@ -405,57 +326,8 @@ gboolean clock_check(gpointer dummy)
+ 	gtk_menu_item_set_label(GTK_MENU_ITEM(tray->status), status_text);
+ 
+ 	const char *icon_name = get_tray_icon_name(xneur_symbol);
+-	if (tray->tray_icon)
+-	{
+-		gtk_widget_hide_all(GTK_WIDGET(tray->tray_icon));
+-		gtk_widget_destroy (tray->image);
+-		if (strcasecmp(show_in_the_tray, "Text") == 0)
+-		{
+-			char *layout_name = get_active_kbd_symbol(dpy);
+-			for (unsigned int i=0; i < strlen(layout_name); i++)
+-				layout_name[i] = toupper(layout_name[i]);
+-			tray->image = gtk_label_new ((const gchar *)layout_name);
+-			gtk_label_set_justify (GTK_LABEL(tray->image), GTK_JUSTIFY_CENTER);
+-			free(layout_name);
+-		}
+-		else
+-		{
+-			if ((strcasecmp(show_in_the_tray, "Directory") != 0))
+-				tray->image = gtk_image_new_from_icon_name(icon_name, GTK_ICON_SIZE_LARGE_TOOLBAR);
+-			else
+-				tray->image = gtk_image_new_from_file(icon_name);
+-		}
+-		gtk_container_add(GTK_CONTAINER(tray->evbox), tray->image);
+-		gtk_widget_show_all(GTK_WIDGET(tray->tray_icon));
+-	}
+-	else if (tray->status_icon)
+-	{
+-		if (gtk_status_icon_is_embedded(tray->status_icon))
+-		{
+-			if (strcasecmp(show_in_the_tray, "Text") == 0)
+-			{
+-				char *layout_name = get_active_kbd_symbol(dpy);
+-				for (unsigned int i=0; i < strlen(layout_name); i++)
+-					layout_name[i] = toupper(layout_name[i]);
+-				GdkPixbuf *pb = text_to_gtk_pixbuf (layout_name);
+-				free(layout_name);
+-				pb = gdk_pixbuf_add_alpha(pb, TRUE, 255, 255, 255);
+-				gtk_status_icon_set_from_pixbuf(tray->status_icon, pb);
+-				g_object_unref(pb);
+-			}
+-			else
+-			{
+-				if ((strcasecmp(show_in_the_tray, "Directory") != 0))
+-					gtk_status_icon_set_from_icon_name(tray->status_icon, icon_name);
+-				else
+-					gtk_status_icon_set_from_file(tray->status_icon, icon_name);
+-			}
+-
+-			gtk_status_icon_set_tooltip(tray->status_icon, hint);
+-		}
+-	}
+ #ifdef HAVE_APP_INDICATOR
+-	else if (tray->app_indicator)
++	if (tray->app_indicator)
+ 	{
+ 		if (strcasecmp(show_in_the_tray, "Text") == 0)
+ 		{
+@@ -586,8 +458,6 @@ void create_tray_icon (void)
+ #ifdef HAVE_APP_INDICATOR
+ 	tray->app_indicator = NULL;
+ #endif
+-	tray->status_icon = NULL;
+-	tray->tray_icon = NULL;
+ 
+ 	// Init pixbuf array
+ 	/*for (int i = 0; i < MAX_LAYOUTS; i++)
+@@ -605,109 +475,18 @@ void create_tray_icon (void)
+ 
+ 	tray->menu = create_menu(tray, xconfig->manual_mode);
+ 
+-	int tray_icon_created = 0;
+-	int tray_icon_failed = 0;
+-
+-	if (strcasecmp(rendering_engine, "AppIndicator") == 0)
+-	{
+ #ifdef HAVE_APP_INDICATOR
+-		// App indicator
+-		tray->app_indicator = app_indicator_new ("X Neural Switcher",
+-		                           PACKAGE,
+-		                           APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
+-
+-		if (tray->app_indicator)
+-		{
+-			app_indicator_set_status (tray->app_indicator, APP_INDICATOR_STATUS_ACTIVE);
+-			app_indicator_set_menu (tray->app_indicator, tray->menu);
++	// App indicator: единственный движок на GTK3 (SNI через ayatana)
++	tray->app_indicator = app_indicator_new ("X Neural Switcher",
++	                           PACKAGE,
++	                           APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
+ 
+-			tray_icon_created = 1;
+-			tray_icon_failed = 0;
+-		}
+-		else
+-		{
+-			tray_icon_failed = 1;
+-		}
+-#else
+-		tray_icon_failed = 1;
+-#endif
+-	}
+-
+-
+-	// Tray icon
+-	if (strcasecmp(rendering_engine, "Built-in") == 0 /*|| tray_icon_failed*/)
++	if (tray->app_indicator)
+ 	{
+-		tray->tray_icon = _gtk_tray_icon_new(_("X Neural Switcher"));
+-
+-		if (tray->tray_icon)
+-		{
+-
+-			g_signal_connect(G_OBJECT(tray->tray_icon), "button_press_event", G_CALLBACK(tray_icon_press), NULL);
+-
+-			tray->evbox = gtk_event_box_new();
+-			gtk_event_box_set_visible_window(GTK_EVENT_BOX(tray->evbox), 0);
+-			if (strcasecmp(show_in_the_tray, "Text") == 0)
+-			{
+-				char *layout_name = get_active_kbd_symbol (dpy);
+-				for (unsigned int i=0; i < strlen(layout_name); i++)
+-					layout_name[i] = toupper(layout_name[i]);
+-				tray->image = gtk_label_new ((const gchar *)layout_name);
+-				gtk_label_set_justify (GTK_LABEL(tray->image), GTK_JUSTIFY_CENTER);
+-				free(layout_name);
+-			}
+-			else
+-			{
+-				char *layout_name = get_active_kbd_symbol (dpy);
+-				tray->image = gtk_image_new_from_icon_name(layout_name, GTK_ICON_SIZE_LARGE_TOOLBAR);
+-				//tray->image = gtk_image_new_from_icon_name(tray->images[kbd_gr], GTK_ICON_SIZE_LARGE_TOOLBAR);
+-				free(layout_name);
+-			}
+-			gtk_container_add(GTK_CONTAINER(tray->evbox), tray->image);
+-			gtk_container_add(GTK_CONTAINER(tray->tray_icon), tray->evbox);
+-
+-			gtk_widget_show_all(GTK_WIDGET(tray->tray_icon));
+-
+-			tray_icon_created = 1;
+-			tray_icon_failed = 0;
+-		}
+-		else
+-		{
+-			tray_icon_failed = 1;
+-		}
+-	}
+-
+-	// Status Icon
+-	if (tray_icon_failed || !tray_icon_created || strcasecmp(rendering_engine, "StatusIcon") == 0 )
+-	{
+-		tray->status_icon = gtk_status_icon_new();
+-
+-		g_signal_connect(G_OBJECT(tray->status_icon), "activate", G_CALLBACK(status_icon_on_click), NULL);
+-		g_signal_connect(G_OBJECT(tray->status_icon), "popup-menu", G_CALLBACK(status_icon_on_menu), NULL);
+-
+-		gtk_status_icon_set_from_icon_name(tray->status_icon,  PACKAGE);
+-		gtk_status_icon_set_tooltip_text(tray->status_icon, "X Neural Switcher");
+-		gtk_status_icon_set_visible(tray->status_icon, TRUE);
+-
+-		if (strcasecmp(show_in_the_tray, "Text") == 0)
+-		{
+-			char *layout_name = get_active_kbd_symbol (dpy);
+-			for (unsigned int i=0; i < strlen(layout_name); i++)
+-				layout_name[i] = toupper(layout_name[i]);
+-
+-			GdkPixbuf *pb = text_to_gtk_pixbuf (layout_name);
+-			free(layout_name);
+-			pb = gdk_pixbuf_add_alpha(pb, TRUE, 255, 255, 255);
+-			gtk_status_icon_set_from_pixbuf(tray->status_icon, pb);
+-			g_object_unref(pb);
+-		}
+-		else
+-		{
+-			char *layout_name = get_active_kbd_symbol (dpy);
+-			//gtk_status_icon_set_from_icon_name(tray->status_icon, tray->images[kbd_gr]);
+-			gtk_status_icon_set_from_icon_name(tray->status_icon, layout_name);
+-			free(layout_name);
+-		}
++		app_indicator_set_status (tray->app_indicator, APP_INDICATOR_STATUS_ACTIVE);
++		app_indicator_set_menu (tray->app_indicator, tray->menu);
+ 	}
++#endif
+ 
+ 	force_update = TRUE;
+ 
 diff --git a/gxneur/src/trayicon.h b/gxneur/src/trayicon.h
-index d3aac73..4e05815 100644
+index d3aac73..faf659d 100644
 --- a/gxneur/src/trayicon.h
 +++ b/gxneur/src/trayicon.h
-@@ -25,7 +25,7 @@
+@@ -20,12 +20,10 @@
+ #ifndef _TRAYICON_H_
+ #define _TRAYICON_H_
+ 
+-#include "tray_widget.h"
+-
  #define MAX_LAYOUTS 4
  
  #ifdef HAVE_APP_INDICATOR
@@ -27,6 +340,25 @@ index d3aac73..4e05815 100644
  #endif
  
  struct _tray_icon
+@@ -34,18 +32,7 @@ struct _tray_icon
+ 	// App Indicator part
+ 	AppIndicator *app_indicator;
+ #endif
+-	 
+-	// Tray part
+-	GtkTrayIcon *tray_icon;
+-	GtkTooltips *tooltip;
+-	GtkWidget *image;
+-	GtkWidget *evbox;
+-	 
+-	// Status Icon part
+-	GtkStatusIcon *status_icon;
+ 
+-	// All
+-	//gchar  *images[MAX_LAYOUTS];
+ 	GtkMenu *menu;
+ 	GtkWidget *status;
+ 	
 diff --git a/xneur/configure.ac b/xneur/configure.ac
 index 4d72a1f..de3f8d0 100644
 --- a/xneur/configure.ac
